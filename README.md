@@ -47,17 +47,19 @@ pip install -r requreriments.txt
 ```
 
 ## Usage
-Training commands of the best models. Training time for the models ranges from x to y hours.
+Training commands of the best model. Training time for the models ranges from 2 to 24 hours, depending on the GPU you use.
 
-After training, models will be saved in `./weights/` and training logs will be saved in `./logs`
+After training, the model will be saved in model path established in the configuration. If you do not want or can not use WandB, the training logs will appear in the terminal through the training session. You can use as well the nohup command with a `.out` file.
 ```
 python train.py ....
 ```
 
-You can make predictions on a test set. In case you test with ISIC 2020 test data a submission in order to check test accuracy will be saved in `./submissions/`
+You can make predictions on a test set. Same as before, the logs will appear in the terminal if you do not use the nohup command with a `.out` file.
 ```
 python predict.py ....
 ```
 
+In case you do not want to train a model the best model with and without metadata are on the `./models/` folder of this repo.
+
 ## Link to the thesis
-Link to the Bachelor's thesis (TFG): soon
+Link to the Bachelor's thesis (TFG): soon...
