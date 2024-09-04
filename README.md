@@ -41,7 +41,7 @@ python3 train.py --wandb_entity (username) --wandb_project (your project) --wand
 
 You can make predictions on a test set. Same as before, the logs will appear in the terminal if you do not use the nohup command with a `.out` file.
 ```
-python predict.py --dataset ISIC_crops_train --data_dir (your data path) --model_path (your model path) --image_size 192 --arch efficientnet_b3 --batch_size 256 --use_metadata no
+python predict.py --dataset ISIC_crops_train --data_dir (your data path) --model_path (your model path) --misc_path (path to save curves and cm) --image_size 192 --arch efficientnet_b3 --batch_size 256 --use_metadata no
 ```
 
 In case you do not want to train a model the best model with and without metadata is available [here](https://drive.google.com/drive/folders/1zo6dL-G_r2i_W9bDiG4a_0Lw6yXfhet-?usp=sharing).
