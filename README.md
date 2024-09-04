@@ -1,4 +1,4 @@
-# TFG - Early detection of melanoma using artificial intelligence (AI)
+# TFG - Early detection of melanoma using artificial intelligence (AI) - unfinished! :)
 
 This repository includes the code of my Biomedical Engineering Degree final project.
 
