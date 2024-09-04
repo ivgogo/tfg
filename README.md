@@ -44,7 +44,7 @@ You can make predictions on a test set. Same as before, the logs will appear in 
 python predict.py --dataset ISIC_crops_train --data_dir (your data path) --model_path (your model path) --image_size 192 --arch efficientnet_b3 --batch_size 256 --use_metadata no
 ```
 
-In case you do not want to train a model the best model with and without metadata are on the `./models/` folder of this repo.
+In case you do not want to train a model the best model with and without metadata is available [here](https://drive.google.com/drive/folders/1zo6dL-G_r2i_W9bDiG4a_0Lw6yXfhet-?usp=sharing).
 
 ## Link to the thesis
 Link to the Bachelor's thesis (TFG): soon...
