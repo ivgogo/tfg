@@ -34,7 +34,7 @@ After having installed the dependencies. Download the train and test datasets an
 ## Usage
 Training commands to run the script. However the use of `nohup` and `.ssh` files is recommended. Training time for the models ranges multiple hours to tens of hours, depending on the GPU you use.
 
-After training, the model will be saved in model path established in the configuration. If you do not want or can not use WandB, the training logs will appear in the terminal through the training session. You can use as well the nohup command with a `.out` file.
+After training, the model will be saved in model path established in the configuration. **The use of WandB is NOT mandatory**. So if you do not want or can not use WandB, the training logs will appear in the terminal during the training session. You can use as well the nohup command with a `.out` file.
 ```
 python3 train.py --wandb_entity (username) --wandb_project (your project) --wandb_api_key (your API key) --dataset iToBoS --data_dir (your data path) --model_path (path to save your model) --image_size 192 --arch efficientnet_b3 --batch_size 64 --epochs 35 --initial_lr 0.00003 --loss BCEWithLogitsLoss --pos_weight 10 --oversampling 150 --undersampling 1 --use_metadata no
 ```
