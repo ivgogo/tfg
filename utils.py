@@ -84,7 +84,7 @@ def train_model(model, train_loader, criterion, optimizer, device):
     
     for data in train_loader:
         inputs = data['image'].to(device)
-        labels = data['target'].to(device).unsqueeze(1)  # Cambié a 'targets'
+        labels = data['target'].to(device).unsqueeze(1)
         
         if model.use_meta:
             metadata = data['metadata'].to(device)
@@ -112,7 +112,7 @@ def validate_model(model, val_loader, criterion, device):
     with torch.no_grad():
         for data in val_loader:
             inputs = data['image'].to(device)
-            labels = data['target'].to(device).unsqueeze(1)  # Cambié a 'targets'
+            labels = data['target'].to(device).unsqueeze(1)  
             
             if model.use_meta:
                 metadata = data['metadata'].to(device)

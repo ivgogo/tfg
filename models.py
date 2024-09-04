@@ -48,7 +48,7 @@ class SimpleEffnet(nn.Module):
     def forward(self, x, metadata=None):
         x = self.model(x)
         if self.use_meta:
-            x = torch.cat((x, metadata), dim=1)  # Combina las características extraídas de la imagen con los metadatos
+            x = torch.cat((x, metadata), dim=1)  
         x = self.last_layer(x)
         return x
 

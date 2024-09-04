@@ -20,6 +20,7 @@ def parse_args():
     parser.add_argument('--dataset', type=str, required=True)
     parser.add_argument('--data_dir', type=str, required=True)
     parser.add_argument('--model_path', type=str, required=True)
+    parser.add_argument('--misc_path', type=str, required=True)
     parser.add_argument('--image_size', type=int, required=True)
     parser.add_argument('--arch', type=str, required=True)
     parser.add_argument('--batch_size', type=int, default=64)
@@ -64,9 +65,8 @@ def main():
     model_path = args.model_path
     model_name = os.path.basename(model_path).replace('.pth', '')
     saving_path_plots = f'predict_{model_name}_on_{args.dataset}'
-    main_path = '/home/falcon/student3/tfg_ivan/data'
 
-    auc, f1, fpr, tpr, sensibility, precision, recall, balanced_accuracy_score = metrics(targets=targets, predictions=predictions, path=os.path.join(main_path, saving_path_plots)).values()
+    auc, f1, fpr, tpr, sensibility, precision, recall, balanced_accuracy_score = metrics(targets=targets, predictions=predictions, path=os.path.join(args.misc_path, saving_path_plots)).values()
 
     print(f'‣ AUC: {auc}')
     print(f'‣ Weighted F1 Score: {f1}')

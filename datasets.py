@@ -98,38 +98,37 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
             df_train_20['filepath'] = df_train_20['filepath'].astype(str)
 
             if use_metadata:
-                # Concatenar 'anatom_site_general_challenge' de los tres dataframes
+                # 
                 concat = pd.concat([df_train_19['anatom_site_general_challenge'], df_train_20['anatom_site_general_challenge']], ignore_index=True)
 
-                # Crear variables dummy
+                # 
                 dummies = pd.get_dummies(concat, dummy_na=True, dtype=np.uint8, prefix='site')
 
-                # Agregar las variables dummy a cada dataframe correspondiente
+                # 
                 df_train_19 = pd.concat([df_train_19.reset_index(drop=True), dummies.iloc[:df_train_19.shape[0]].reset_index(drop=True)], axis=1)
                 df_train_20 = pd.concat([df_train_20.reset_index(drop=True), dummies.iloc[df_train_19.shape[0]:df_train_19.shape[0] + df_train_20.shape[0]].reset_index(drop=True)], axis=1)
 
-                # Procesar la variable 'sex'
+                # 
                 for df in [df_train_19, df_train_20]:
                     df['sex'] = df['sex'].map({'male': 1, 'female': 0})
                     df['sex'] = df['sex'].fillna(-1)
 
-                # Procesar la variable 'age_approx'
+                # 
                 for df in [df_train_19, df_train_20]:
                     df['age_approx'] /= df['age_approx'].max()
                     df['age_approx'] = df['age_approx'].fillna(0)
                     df['patient_id'] = df['patient_id'].fillna(0)
 
-                # Calcular el número de imágenes por usuario
+                # 
                 for df in [df_train_19, df_train_20]:
                     df['n_images'] = df.patient_id.map(df.groupby(['patient_id']).image_name.count())
                     df.loc[df['patient_id'] == -1, 'n_images'] = 1
                     df['n_images'] = np.log1p(df['n_images'].values)
 
-                # Calcular el tamaño de las imágenes
+                # 
                 for df in [df_train_19, df_train_20]:
                     train_images = df['filepath'].values
                     train_sizes = np.zeros(train_images.shape[0])
-                    # print(train_images.shape)
                     for i, img_path in enumerate(train_images):
                         train_sizes[i] = os.path.getsize(img_path)
                     df['image_size'] = np.log(train_sizes)
@@ -150,7 +149,7 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
 
                 df = pd.concat([train_df, val_df]).reset_index(drop=True)
 
-                # Seleccionar las características meta
+                # 
                 metadata_features = ['sex', 'age_approx', 'n_images', 'image_size'] + [col for col in df.columns if col.startswith('site_')]
                 n_metadata_features = len(metadata_features)
 
@@ -169,7 +168,7 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
             df['filepath'] = df['filepath'].astype(str)
 
             if use_metadata:
-                # Crear variables dummy
+                # 
                 dummies = pd.get_dummies(df['anatom_site_general_challenge'], dummy_na=True, dtype=np.uint8, prefix='site')
 
                 df = pd.concat([df.reset_index(drop=True), dummies.reset_index(drop=True)], axis=1)
@@ -191,7 +190,7 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
                     test_sizes[i] = os.path.getsize(img_path)
                 df['image_size'] = np.log(test_sizes)
 
-                # Seleccionar las características meta
+                # 
                 metadata_features = ['sex', 'age_approx', 'n_images', 'image_size'] + [col for col in df.columns if col.startswith('site_')]
                 n_metadata_features = len(metadata_features)
 
@@ -203,34 +202,34 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
             df['filepath'] = df['isic_id'].apply(lambda x: os.path.join(isic_24_path, 'train-image/image', f'{x}.jpg'))
 
             if use_metadata:
-                # Crear variables dummy para la columna 'anatom_site_general_challenge'
+                # 
                 dummies = pd.get_dummies(df['anatom_site_general'], dummy_na=True, dtype=np.uint8, prefix='site')
 
-                # Agregar las variables dummy al dataframe
+                # 
                 df = pd.concat([df.reset_index(drop=True), dummies.reset_index(drop=True)], axis=1)
 
-                # Procesar la variable 'sex'
+                # 
                 df['sex'] = df['sex'].map({'male': 1, 'female': 0})
                 df['sex'] = df['sex'].fillna(-1)
 
-                # Procesar la variable 'age_approx'
+                # 
                 df['age_approx'] /= df['age_approx'].max()
                 df['age_approx'] = df['age_approx'].fillna(0)
                 df['patient_id'] = df['patient_id'].fillna(0)
 
-                # Calcular el número de imágenes por usuario
+                # 
                 df['n_images'] = df.patient_id.map(df.groupby(['patient_id']).isic_id.count())
                 df.loc[df['patient_id'] == -1, 'n_images'] = 1
                 df['n_images'] = np.log1p(df['n_images'].values)
 
-                # Calcular el tamaño de las imágenes
+                # 
                 train_images = df['filepath'].values
                 train_sizes = np.zeros(train_images.shape[0])
                 for i, img_path in enumerate(train_images):
                     train_sizes[i] = os.path.getsize(img_path)
                 df['image_size'] = np.log(train_sizes)
 
-                # Seleccionar las características meta
+                # 
                 metadata_features = ['sex', 'age_approx', 'n_images', 'image_size'] + [col for col in df.columns if col.startswith('site_')]
                 n_metadata_features = len(metadata_features)
 
@@ -280,25 +279,25 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
 
             df = pd.concat([train_df, val_df]).reset_index(drop=True)
 
-            # Crear una serie booleana indicando si cada filepath existe
+            # 
             filepaths_exist = df['filepath'].apply(os.path.exists)
 
-            # Crear un DataFrame con las filas cuyos filepaths no existen
+            # 
             non_existing_paths_df = df[~filepaths_exist].copy()
 
-            # Definir los directorios base para UQ y FCRB
+            # 
             uq_path = '/home/falcon/student3/tfg_ivan/data/iToBoS_internal_ISIC_2024/UQ/crops'
             fcrb_path = '/home/falcon/student3/tfg_ivan/data/iToBoS_internal_ISIC_2024/FCRB/crops'
 
-            # Definir funciones para intentar corregir los filepaths
+            # 
             def fix_filepath(row, base_path):
-                # Intentar con /tags/ y /ambiguous/ si es UQ
+                # 
                 if 'UQ' in base_path:
                     corrected_paths = [
                         os.path.join(base_path, 'tags', row['filename']),
                         os.path.join(base_path, 'ambiguous', row['filename'])
                     ]
-                # Intentar solo con /tags/ si es FCRB
+                # 
                 elif 'FCRB' in base_path:
                     corrected_paths = [
                         os.path.join(base_path, 'tags', row['filename'])
@@ -311,15 +310,15 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
                         return path
                 return None
 
-            # Crear una columna en non_existing_paths_df que indique si es UQ o FCRB
+            # 
             non_existing_paths_df['source'] = non_existing_paths_df['filepath'].apply(lambda x: 'UQ' if uq_path in x else 'FCRB')
 
-            # Intentar corregir los filepaths
+            # 
             non_existing_paths_df['corrected_filepath'] = non_existing_paths_df.apply(
                 lambda row: fix_filepath(row, uq_path if row['source'] == 'UQ' else fcrb_path), axis=1
             )
 
-            # Reemplazar los filepaths en el DataFrame original
+            # 
             for index, row in non_existing_paths_df.iterrows():
                 if pd.notnull(row['corrected_filepath']):
                     df.loc[df['filepath'] == row['filepath'], 'filepath'] = row['corrected_filepath']
@@ -327,32 +326,32 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
             if use_metadata:
                 dummies = pd.get_dummies(df['anatom_site_general'], dummy_na=True, dtype=np.uint8, prefix='site')
 
-                # Agregar las variables dummy al dataframe
+                # 
                 df = pd.concat([df.reset_index(drop=True), dummies.reset_index(drop=True)], axis=1)
 
-                # Procesar la variable 'sex'
+                # 
                 df['sex'] = df['sex'].map({'male': 1, 'female': 0})
                 df['sex'] = df['sex'].fillna(-1)
 
-                # Procesar la variable 'age_approx'
+                # 
                 df['age'] = pd.to_numeric(df['age'], errors='coerce')
                 df['age'] /= df['age'].max()
                 df['age'] = df['age'].fillna(0)
                 df['patient_id'] = df['patient_id'].fillna(0)
 
-                # Calcular el número de imágenes por usuario
+                # 
                 df['n_images'] = df.patient_id.map(df.groupby(['patient_id']).filename.count())
                 df.loc[df['patient_id'] == -1, 'n_images'] = 1
                 df['n_images'] = np.log1p(df['n_images'].values)
 
-                # Calcular el tamaño de las imágenes
+                # 
                 train_images = df['filepath'].values
                 train_sizes = np.zeros(train_images.shape[0])
                 for i, img_path in enumerate(train_images):
                     train_sizes[i] = os.path.getsize(img_path)
                 df['image_size'] = np.log(train_sizes)
 
-                # Seleccionar las características meta
+                # 
                 metadata_features = ['sex', 'age', 'n_images', 'image_size'] + [col for col in df.columns if col.startswith('site_')]
                 n_metadata_features = len(metadata_features)
 
@@ -368,31 +367,31 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
             if use_metadata:
                 dummies = pd.get_dummies(df['anatom_site_general_challenge'], dummy_na=True, dtype=np.uint8, prefix='site')
 
-                # Agregar las variables dummy al dataframe
+                # 
                 df = pd.concat([df.reset_index(drop=True), dummies.reset_index(drop=True)], axis=1)
 
-                # Procesar la variable 'sex'
+                # 
                 df['sex'] = df['sex'].map({'male': 1, 'female': 0})
                 df['sex'] = df['sex'].fillna(-1)
 
-                # Procesar la variable 'age_approx'
+                # 
                 df['age_approx'] /= df['age_approx'].max()
                 df['age_approx'] = df['age_approx'].fillna(0)
                 df['patient_id'] = df['patient_id'].fillna(0)
 
-                # Calcular el número de imágenes por usuario
+                # 
                 df['n_images'] = df.patient_id.map(df.groupby(['patient_id']).isic_id.count())
                 df.loc[df['patient_id'] == -1, 'n_images'] = 1
                 df['n_images'] = np.log1p(df['n_images'].values)
 
-                # Calcular el tamaño de las imágenes
+                # 
                 train_images = df['filepath'].values
                 train_sizes = np.zeros(train_images.shape[0])
                 for i, img_path in enumerate(train_images):
                     train_sizes[i] = os.path.getsize(img_path)
                 df['image_size'] = np.log(train_sizes)
 
-                # Seleccionar las características meta
+                # 
                 metadata_features = ['sex', 'age_approx', 'n_images', 'image_size'] + [col for col in df.columns if col.startswith('site_')]
                 n_metadata_features = len(metadata_features)
 

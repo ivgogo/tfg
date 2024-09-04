@@ -53,7 +53,7 @@ def parse_args():
     args, _ = parser.parse_known_args()
     return args
     
-@discord_sender(webhook_url=WEBHOOK)
+# @discord_sender(webhook_url=WEBHOOK)
 def main():
     
     # ================ Wandb ================
@@ -141,8 +141,6 @@ def main():
 
     # Create the model name using the parameters established on the configuration of the training session
     model_name = build_model_name(args)
-    # model_name = model_name.replace('.pth', '')
-    # model_name += '_effnetb0.pth'
 
     for epoch in range(args.epochs):
         
