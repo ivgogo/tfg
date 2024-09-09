@@ -1,24 +1,29 @@
+# ================ Required imports & libraries ================
+
+# Torch
+import torchvision.transforms as transforms  # Transformations we can perform on our dataset
+import torch.optim as optim  # For all Optimization algorithms, SGD, Adam, etc.
+import torch.nn as nn  # All neural network modules, nn.Linear, nn.Conv2d, BatchNorm, Loss functions
+import torch
+
+# Basic libraries
 import pandas as pd
 import numpy as np
-
-import os
+import random
 import cv2
-import torch
-import torch.nn as nn  # All neural network modules, nn.Linear, nn.Conv2d, BatchNorm, Loss functions
-import torch.optim as optim  # For all Optimization algorithms, SGD, Adam, etc.
-import torchvision.transforms as transforms  # Transformations we can perform on our dataset
+import os
+
+# Albumentations --> augmentations library for pytorch
+from albumentations.core.transforms_interface import ImageOnlyTransform # create custom albumentations modules
 import albumentations
 
-import cv2
-from albumentations.core.transforms_interface import ImageOnlyTransform
-import random
-import os
-
+# Sklearn
 from sklearn.model_selection import train_test_split
 
-        
+# Custom dataset for the project       
 class Custom_Dataset:
     def __init__(self, df, mode, resize, metadata_features, augmentations=None, oversample_ratio=0, undersample_ratio=0):
+        
         self.df = df
         self.mode = mode
         self.resize = resize
@@ -27,15 +32,18 @@ class Custom_Dataset:
         self.oversample_ratio = oversample_ratio
         self.undersample_ratio = undersample_ratio
 
-        self.use_metadata = metadata_features is not None   # 
+        self.use_metadata = metadata_features is not None 
 
+        # Positives and negatives cases for OS and US
         self.positive_cases = self.df[self.df['target'] == 1].reset_index(drop=True)
         self.negative_cases = self.df[self.df['target'] == 0].reset_index(drop=True)
 
+        # Oversampling process if mode = train and OS_ratio > 1
         if self.mode == "train" and self.oversample_ratio > 1:
             self.positive_cases = pd.concat([self.positive_cases] * self.oversample_ratio, axis=0).reset_index(drop=True)
             self.df = pd.concat([self.negative_cases, self.positive_cases]).reset_index(drop=True)
 
+        # Undersampling process
         if self.undersample_ratio > 0:
             self.negative_cases = self.negative_cases.sample(n=undersample_ratio*len(self.positive_cases), random_state=42)
             self.df = pd.concat([self.negative_cases, self.positive_cases]).reset_index(drop=True)
@@ -54,6 +62,7 @@ class Custom_Dataset:
         
         image = np.array(image)
         
+        # Apply augmentations
         if self.augmentations is not None:
             augmented = self.augmentations(image=image)
             image = augmented["image"]
@@ -84,7 +93,6 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
         case "ISIC_dermatoscopic_train":
 
             # Create data paths, read and assign filepaths
-
             isic_19_path = os.path.join(data_dir, f'isic_data/jpeg-isic2019-{image_size}x{image_size}')
             isic_20_path = os.path.join(data_dir, f'isic_data/jpeg-melanoma-{image_size}x{image_size}')
 
@@ -98,34 +106,34 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
             df_train_20['filepath'] = df_train_20['filepath'].astype(str)
 
             if use_metadata:
-                # 
+                # Unify anatom_site_general_challenge in only a df
                 concat = pd.concat([df_train_19['anatom_site_general_challenge'], df_train_20['anatom_site_general_challenge']], ignore_index=True)
 
-                # 
+                # One-hot enoce anatom_site_general_challenge
                 dummies = pd.get_dummies(concat, dummy_na=True, dtype=np.uint8, prefix='site')
 
-                # 
+                # Return it to its own original df
                 df_train_19 = pd.concat([df_train_19.reset_index(drop=True), dummies.iloc[:df_train_19.shape[0]].reset_index(drop=True)], axis=1)
                 df_train_20 = pd.concat([df_train_20.reset_index(drop=True), dummies.iloc[df_train_19.shape[0]:df_train_19.shape[0] + df_train_20.shape[0]].reset_index(drop=True)], axis=1)
 
-                # 
+                # Map sex to 0 and 1
                 for df in [df_train_19, df_train_20]:
                     df['sex'] = df['sex'].map({'male': 1, 'female': 0})
                     df['sex'] = df['sex'].fillna(-1)
 
-                # 
+                # Normalize age with max age on the whole df
                 for df in [df_train_19, df_train_20]:
                     df['age_approx'] /= df['age_approx'].max()
                     df['age_approx'] = df['age_approx'].fillna(0)
                     df['patient_id'] = df['patient_id'].fillna(0)
 
-                # 
+                # Create n_images for each patient --> + images = + moles and it can be a signal to + probabilities of melanoma
                 for df in [df_train_19, df_train_20]:
                     df['n_images'] = df.patient_id.map(df.groupby(['patient_id']).image_name.count())
                     df.loc[df['patient_id'] == -1, 'n_images'] = 1
                     df['n_images'] = np.log1p(df['n_images'].values)
 
-                # 
+                # Image size can be a signal of bigger lesions --> more probs of malignant
                 for df in [df_train_19, df_train_20]:
                     train_images = df['filepath'].values
                     train_sizes = np.zeros(train_images.shape[0])
@@ -135,6 +143,7 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
 
                 df = pd.concat([df_train_19, df_train_20]).reset_index(drop=True)
 
+                # Train val split of 80/20
                 malignants = df[df['target'] == 1]
                 benign = df[df['target'] == 0]
 
@@ -149,7 +158,7 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
 
                 df = pd.concat([train_df, val_df]).reset_index(drop=True)
 
-                # 
+                # Group up metadata_features
                 metadata_features = ['sex', 'age_approx', 'n_images', 'image_size'] + [col for col in df.columns if col.startswith('site_')]
                 n_metadata_features = len(metadata_features)
 
@@ -159,7 +168,6 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
         case "ISIC_dermatoscopic_test":
             
             # Create data paths, read and assign filepaths
-
             isic_20_path = os.path.join(data_dir, f'isic_data/jpeg-melanoma-{image_size}x{image_size}')
 
             df = pd.read_csv(os.path.join(isic_20_path, 'test.csv'))
@@ -168,73 +176,95 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
             df['filepath'] = df['filepath'].astype(str)
 
             if use_metadata:
-                # 
+                # One-hot enoce anatom_site_general_challenge
                 dummies = pd.get_dummies(df['anatom_site_general_challenge'], dummy_na=True, dtype=np.uint8, prefix='site')
 
+                # Concat original df with dummies generated
                 df = pd.concat([df.reset_index(drop=True), dummies.reset_index(drop=True)], axis=1)
 
+                # Map sex to 0 and 1
                 df['sex'] = df['sex'].map({'male': 1, 'female': 0})
                 df['sex'] = df['sex'].fillna(-1)
 
+                # Normalize age with max age on the whole df
                 df['age_approx'] /= df['age_approx'].max()
                 df['age_approx'] = df['age_approx'].fillna(0)
                 df['patient_id'] = df['patient_id'].fillna(0)
 
+                # Create n_images for each patient --> + images = + moles and it can be a signal to + probabilities of melanoma
                 df['n_images'] = df.patient_id.map(df.groupby(['patient_id']).image_name.count())
                 df.loc[df['patient_id'] == -1, 'n_images'] = 1
                 df['n_images'] = np.log1p(df['n_images'].values)
 
+                # Image size can be a signal of bigger lesions --> more probs of malignant
                 test_images = df['filepath'].values
                 test_sizes = np.zeros(test_images.shape[0])
                 for i, img_path in enumerate(test_images):
                     test_sizes[i] = os.path.getsize(img_path)
                 df['image_size'] = np.log(test_sizes)
 
-                # 
+                # Group up metadata_features
                 metadata_features = ['sex', 'age_approx', 'n_images', 'image_size'] + [col for col in df.columns if col.startswith('site_')]
                 n_metadata_features = len(metadata_features)
 
         case "ISIC_crops_train":
             
+            # Create data paths, read and assign filepaths
             isic_24_path = os.path.join(data_dir, 'isic-2024-challenge')
 
             df = pd.read_csv(os.path.join(isic_24_path, 'train-metadata.csv'))
             df['filepath'] = df['isic_id'].apply(lambda x: os.path.join(isic_24_path, 'train-image/image', f'{x}.jpg'))
 
             if use_metadata:
-                # 
+                # One hot encode anatom_site_general
                 dummies = pd.get_dummies(df['anatom_site_general'], dummy_na=True, dtype=np.uint8, prefix='site')
 
-                # 
+                # Concat it with original df
                 df = pd.concat([df.reset_index(drop=True), dummies.reset_index(drop=True)], axis=1)
 
-                # 
+                # Map sex to 0 and 1
                 df['sex'] = df['sex'].map({'male': 1, 'female': 0})
                 df['sex'] = df['sex'].fillna(-1)
 
-                # 
+                # Normalize age with max age on the whole df
                 df['age_approx'] /= df['age_approx'].max()
                 df['age_approx'] = df['age_approx'].fillna(0)
                 df['patient_id'] = df['patient_id'].fillna(0)
 
-                # 
+                # Create n_images for each patient --> + images = + moles and it can be a signal to + probabilities of melanoma
                 df['n_images'] = df.patient_id.map(df.groupby(['patient_id']).isic_id.count())
                 df.loc[df['patient_id'] == -1, 'n_images'] = 1
                 df['n_images'] = np.log1p(df['n_images'].values)
 
-                # 
+                # Image size can be a signal of bigger lesions --> more probs of malignant
                 train_images = df['filepath'].values
                 train_sizes = np.zeros(train_images.shape[0])
                 for i, img_path in enumerate(train_images):
                     train_sizes[i] = os.path.getsize(img_path)
                 df['image_size'] = np.log(train_sizes)
 
-                # 
+                # Train val split of 80/20 in case we want to train with this dataset
+                malignants = df[df['target'] == 1]
+                benign = df[df['target'] == 0]
+
+                malignant_train, malignant_val = train_test_split(malignants, test_size=0.2, random_state=42)
+                benign_train, bening_val = train_test_split(benign, test_size=0.2, random_state=42)
+
+                train_df = pd.concat([benign_train, malignant_train]).reset_index(drop=True)
+                val_df = pd.concat([bening_val, malignant_val]).reset_index(drop=True)
+
+                train_df['mode'] = 'train'
+                val_df['mode'] = 'val'
+
+                df = pd.concat([train_df, val_df]).reset_index(drop=True)
+
+                # Group up metadata_features
                 metadata_features = ['sex', 'age_approx', 'n_images', 'image_size'] + [col for col in df.columns if col.startswith('site_')]
                 n_metadata_features = len(metadata_features)
 
         case "iToBoS":
 
+            # Create paths and read csvs
             uq_path = os.path.join(data_dir, 'iToBoS_internal_ISIC_2024/UQ')
             fcrb_path = os.path.join(data_dir, 'iToBoS_internal_ISIC_2024/FCRB')
 
@@ -243,6 +273,7 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
             uq_df = pd.read_csv(os.path.join(uq_path, 'metadata_revised.csv'), low_memory=False)
             fcrb_df = pd.read_csv(os.path.join(fcrb_path, 'metadata_revised.csv'), low_memory=False)
 
+            # Take columns of interest only
             uq_df = uq_df[columns_of_interest]
             fcrb_df = fcrb_df[columns_of_interest]
 
@@ -260,6 +291,7 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
             df['diagnosis'].fillna('None', inplace=True)
             df['target'] = 0
 
+            # Create target column and make the train/val split 80/20
             malignant_strings = ['Melanoma', 'Basal cell carcinoma', 'Squamous cell carcinoma']
 
             for malignancy in malignant_strings:
@@ -279,25 +311,26 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
 
             df = pd.concat([train_df, val_df]).reset_index(drop=True)
 
-            # 
+            # List of filepaths that do exist
             filepaths_exist = df['filepath'].apply(os.path.exists)
 
-            # 
+            # List of filepaths that do not exist
             non_existing_paths_df = df[~filepaths_exist].copy()
 
-            # 
+            # Paths
             uq_path = '/home/falcon/student3/tfg_ivan/data/iToBoS_internal_ISIC_2024/UQ/crops'
             fcrb_path = '/home/falcon/student3/tfg_ivan/data/iToBoS_internal_ISIC_2024/FCRB/crops'
 
-            # 
+            # This process is due to the folder structure the data has, may seem complex but is very simple
+            # It's a process just to create some filepath that are on some folders that do not follow the predefined structure like the rest in order to use all images and not leave any behind
             def fix_filepath(row, base_path):
-                # 
+                # try
                 if 'UQ' in base_path:
                     corrected_paths = [
                         os.path.join(base_path, 'tags', row['filename']),
                         os.path.join(base_path, 'ambiguous', row['filename'])
                     ]
-                # 
+                # try 2
                 elif 'FCRB' in base_path:
                     corrected_paths = [
                         os.path.join(base_path, 'tags', row['filename'])
@@ -310,88 +343,95 @@ def read_data(dataset: str, data_dir: str, image_size: int, use_metadata: bool):
                         return path
                 return None
 
-            # 
+            # Finally
             non_existing_paths_df['source'] = non_existing_paths_df['filepath'].apply(lambda x: 'UQ' if uq_path in x else 'FCRB')
 
-            # 
+            # create final filepaths
             non_existing_paths_df['corrected_filepath'] = non_existing_paths_df.apply(
                 lambda row: fix_filepath(row, uq_path if row['source'] == 'UQ' else fcrb_path), axis=1
             )
 
-            # 
+            # Final fix
             for index, row in non_existing_paths_df.iterrows():
                 if pd.notnull(row['corrected_filepath']):
                     df.loc[df['filepath'] == row['filepath'], 'filepath'] = row['corrected_filepath']
             
             if use_metadata:
+
+                # One hot encode anatom_site_general
                 dummies = pd.get_dummies(df['anatom_site_general'], dummy_na=True, dtype=np.uint8, prefix='site')
 
-                # 
+                # Concat dummies to original df
                 df = pd.concat([df.reset_index(drop=True), dummies.reset_index(drop=True)], axis=1)
 
-                # 
+                # Map sex to 0 and 1
                 df['sex'] = df['sex'].map({'male': 1, 'female': 0})
                 df['sex'] = df['sex'].fillna(-1)
 
-                # 
+                # Normalize age with the max age on the whole dataset
                 df['age'] = pd.to_numeric(df['age'], errors='coerce')
                 df['age'] /= df['age'].max()
                 df['age'] = df['age'].fillna(0)
                 df['patient_id'] = df['patient_id'].fillna(0)
 
-                # 
+                # Create n_images for each patient --> + images = + moles and it can be a signal to + probabilities of melanoma
                 df['n_images'] = df.patient_id.map(df.groupby(['patient_id']).filename.count())
                 df.loc[df['patient_id'] == -1, 'n_images'] = 1
                 df['n_images'] = np.log1p(df['n_images'].values)
 
-                # 
+                # Image size can be a signal of bigger lesions --> more probs of malignant
                 train_images = df['filepath'].values
                 train_sizes = np.zeros(train_images.shape[0])
                 for i, img_path in enumerate(train_images):
                     train_sizes[i] = os.path.getsize(img_path)
                 df['image_size'] = np.log(train_sizes)
 
-                # 
+                # Group up metadata_features
                 metadata_features = ['sex', 'age', 'n_images', 'image_size'] + [col for col in df.columns if col.startswith('site_')]
                 n_metadata_features = len(metadata_features)
 
         case "sana_external":
             
+            # Create path
             sana_external_path = os.path.join(data_dir, 'ProveAI-TTA')
 
+            # Read and load csv
             df = pd.read_csv(os.path.join(sana_external_path, 'test.csv'))
             df['filepath'] = df['isic_id'].apply(lambda x: os.path.join(sana_external_path, f'{x}.jpg'))
 
+            # Create target column
             df['target'] = df['benign_malignant'].apply(lambda x: 1 if x == 'malignant' else 0)
 
             if use_metadata:
+
+                # One hot encode anatom_site_general_challenge
                 dummies = pd.get_dummies(df['anatom_site_general_challenge'], dummy_na=True, dtype=np.uint8, prefix='site')
 
-                # 
+                # Concat it to original df
                 df = pd.concat([df.reset_index(drop=True), dummies.reset_index(drop=True)], axis=1)
 
-                # 
+                # Map sex to 0 and 1
                 df['sex'] = df['sex'].map({'male': 1, 'female': 0})
                 df['sex'] = df['sex'].fillna(-1)
 
-                # 
+                # Normalize age
                 df['age_approx'] /= df['age_approx'].max()
                 df['age_approx'] = df['age_approx'].fillna(0)
                 df['patient_id'] = df['patient_id'].fillna(0)
 
-                # 
+                # Create n_images for each patient --> + images = + moles and it can be a signal to + probabilities of melanoma
                 df['n_images'] = df.patient_id.map(df.groupby(['patient_id']).isic_id.count())
                 df.loc[df['patient_id'] == -1, 'n_images'] = 1
                 df['n_images'] = np.log1p(df['n_images'].values)
 
-                # 
+                # # Image size can be a signal of bigger lesions --> more probs of malignant
                 train_images = df['filepath'].values
                 train_sizes = np.zeros(train_images.shape[0])
                 for i, img_path in enumerate(train_images):
                     train_sizes[i] = os.path.getsize(img_path)
                 df['image_size'] = np.log(train_sizes)
 
-                # 
+                 # Group up metadata_features
                 metadata_features = ['sex', 'age_approx', 'n_images', 'image_size'] + [col for col in df.columns if col.startswith('site_')]
                 n_metadata_features = len(metadata_features)
 
