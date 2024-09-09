@@ -85,12 +85,15 @@ def main():
     print(f'======= Training Session Starting | Device set on: {device} =======')   # we make sure we are running on gpu
     
     # ================ Dataset selection & creation ================
-   
+    
+    # Read .csv data and metadata in case we are training a model with images + metadata
     df, metadata_features, n_metadata_features = read_data(dataset=args.dataset, data_dir=args.data_dir, image_size=args.image_size, use_metadata=True if args.use_metadata == 'yes' else False)
 
+    # Split train and val dfs
     df_train = df[df['mode'] != 'val'].reset_index(drop=True)
     df_valid = df[df['mode'] == 'val'].reset_index(drop=True)
 
+    # Create datasets
     train_dataset = Custom_Dataset(df=df_train, mode="train", resize=args.image_size, metadata_features=metadata_features, augmentations=get_augmentations(mode="train", image_size=args.image_size), oversample_ratio=args.oversampling, undersample_ratio=args.undersampling)
 
     val_dataset = Custom_Dataset(df=df_valid, mode="val", resize=args.image_size, metadata_features=metadata_features, augmentations=get_augmentations(mode="val", image_size=args.image_size), oversample_ratio=0, undersample_ratio=0)
@@ -100,11 +103,11 @@ def main():
     # ================ Create DataLoaders ================
     
     train_loader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
-    valid_loader = DataLoader(dataset=val_dataset, batch_size=(args.batch_size)*2, shuffle=False, num_workers=4)
+    valid_loader = DataLoader(dataset=val_dataset, batch_size=(args.batch_size)*2, shuffle=False, num_workers=4)    # batch size is 2x to speed up the process
 
     # ================ Build Model ================
 
-    model = SimpleEffnet(n_metadata_features=n_metadata_features)
+    model = SimpleEffnet(arch=args.arch, n_metadata_features=n_metadata_features)
     model.to(device)
 
     # ================ Optimizer, Loss, LR Scheduler & Early Stopping ================
@@ -146,12 +149,14 @@ def main():
         
         print(f'[Epoch {epoch+1}/{args.epochs}]')
 
+        # Train and val functions
         train_loss = train_model(model, train_loader, criterion, optimizer, device)
         val_loss, metrics = validate_model(model, valid_loader, criterion, device)
 
-        # unpack metrics
+        # unpack metrics obtained from validation
         auc, f1, fpr, tpr, sensibility, precision, recall, balanced_accuracy = metrics.values()
 
+        # Step scheduler and check for early stop
         scheduler.step(auc)
 
         es(auc, model, os.path.join(args.model_path, model_name))
@@ -159,25 +164,27 @@ def main():
         # Extract current learning rate from optimizer
         current_lr = optimizer.param_groups[0]['lr']
         
+        # Print metrics and track them in wandb (if it is enabled)
         print(f'Train Loss: {train_loss} | Current lr: {current_lr} | Val Loss: {val_loss} - AUC: {auc} - F1: {f1} - Sensibility: {sensibility} - Balanced Accuracy: {balanced_accuracy}')
         print()
-
-        wandb.log({"train_loss": train_loss,
-                   "val_loss": val_loss, 
-                   "val_auc": auc, 
-                   "val_f1": f1,
-                   "val_sensibility": sensibility,
-                   "val_balanced_accuracy": balanced_accuracy,
-                   "lr": current_lr,
-                   "roc_curve": wandb.plot.line_series(
-                        xs=fpr, ys=[tpr], keys=["ROC Curve"],
-                        title="ROC Curve", xname="False Positive Rate"
-                    ),
-                    "precision_recall_curve": wandb.plot.line_series(
-                        xs=recall, ys=[precision], keys=["Precision-Recall Curve"],
-                        title="Precision-Recall Curve", xname="Recall"
-                    )
-                })
+        
+        if WANDB_IS_ENABLED:
+            wandb.log({"train_loss": train_loss,
+                    "val_loss": val_loss, 
+                    "val_auc": auc, 
+                    "val_f1": f1,
+                    "val_sensibility": sensibility,
+                    "val_balanced_accuracy": balanced_accuracy,
+                    "lr": current_lr,
+                    "roc_curve": wandb.plot.line_series(
+                            xs=fpr, ys=[tpr], keys=["ROC Curve"],
+                            title="ROC Curve", xname="False Positive Rate"
+                        ),
+                        "precision_recall_curve": wandb.plot.line_series(
+                            xs=recall, ys=[precision], keys=["Precision-Recall Curve"],
+                            title="Precision-Recall Curve", xname="Recall"
+                        )
+                    })
         
         if es.early_stop:
             print("Early stopping counter reached limit. Early stopping training session...")

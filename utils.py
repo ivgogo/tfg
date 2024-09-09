@@ -1,16 +1,22 @@
+# ================ Required imports & libraries ================
+
+# Torch
+import torch
+
+# Basic libraries
 import argparse
 import pandas as pd
 import numpy as np
-import torch
 import cv2
 import sys
 import os
 
+# Sklearn metrics
 from sklearn.metrics import roc_auc_score, roc_curve, f1_score, balanced_accuracy_score, recall_score, precision_recall_curve, confusion_matrix
-
-    
-# Returns the image with a preprocessing to delete hair done
+  
+# Returns the image with a preprocessing to delete hair done (NOT USED ON THE PROJECT)
 def remove_hair(image):
+
     # convert image to grayScale
     grayScale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     
@@ -78,11 +84,17 @@ def metrics(targets, predictions, path):
 
     return metrics
     
+# Training function
 def train_model(model, train_loader, criterion, optimizer, device):
+    
+    # Set model to training mode and initialize loss to 0
     model.train()
     running_loss = 0.0
     
+    # Training loop
     for data in train_loader:
+        
+        # Inputs and labels to the GPU and metadata in case we use it
         inputs = data['image'].to(device)
         labels = data['target'].to(device).unsqueeze(1)
         
@@ -92,6 +104,7 @@ def train_model(model, train_loader, criterion, optimizer, device):
         else:
             outputs = model(inputs)
 
+        # Optimizer and loss update
         optimizer.zero_grad()
         loss = criterion(outputs, labels)
         loss.backward()
@@ -103,14 +116,23 @@ def train_model(model, train_loader, criterion, optimizer, device):
     
     return epoch_loss
 
+# Validation function
 def validate_model(model, val_loader, criterion, device):
+    
+    # Set model to evaluation mode and initialize loss to 0
     model.eval()
     running_loss = 0.0
+    
+    # Initialize labels arrays
     all_labels = []
     all_outputs = []
     
     with torch.no_grad():
+        
+        # Val loop
         for data in val_loader:
+            
+            # Inputs and labels to the GPU and metadata in case we use it
             inputs = data['image'].to(device)
             labels = data['target'].to(device).unsqueeze(1)  
             
@@ -120,6 +142,7 @@ def validate_model(model, val_loader, criterion, device):
             else:
                 outputs = model(inputs)
 
+            # Loss update
             loss = criterion(outputs, labels)
             
             running_loss += loss.item() * inputs.size(0)
@@ -130,11 +153,22 @@ def validate_model(model, val_loader, criterion, device):
     # Loss
     epoch_loss = running_loss / len(val_loader.dataset)
 
+    # We use custom metrics function to calculate all the metrics of our interest during the validation process
     val_metrics = metrics(targets=all_labels, predictions=all_outputs, path=None)
 
     return epoch_loss, val_metrics
-    
+
+# Build model's name function
 def build_model_name (args):
+
+    '''
+
+    This function is used to build the name of the model
+    I trained multiple models during the project timeline. 
+    In order to differentiate them I built this function to not be changing names all time.
+    It uses the different configuration parameters used to build the model's name.    
+    
+    '''
 
     building_path = f'{args.dataset}_{args.epochs}e_{args.image_size}_{args.batch_size}bs_{args.initial_lr}lr_{args.use_metadata}_metadata'
     model_extension = '.pth'
@@ -154,13 +188,19 @@ def build_model_name (args):
         building_path += f'_USRatio_{args.undersampling}:1'
 
     return building_path+model_extension
-    
+
+# Predict function    
 def predict(model, test_loader, device):
+    
+    # Model to evaluation mode and initialize array for all the outputs
     model.eval()
     all_outputs = []
 
+    # Prediction loop
     with torch.no_grad():
         for data in test_loader:
+
+            # Inputs to the model and metadata if we are using it
             inputs = data['image'].to(device)
 
             if model.use_meta:
@@ -169,6 +209,7 @@ def predict(model, test_loader, device):
             else:
                 outputs = model(inputs)
 
+            # Stack probabilities
             probabilities = torch.sigmoid(outputs)
             all_outputs.extend(probabilities.cpu().numpy())
     

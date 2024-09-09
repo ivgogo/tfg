@@ -1,18 +1,22 @@
-# Treball de final de grau - Enginyeria Biomèdica - Iván González González
+# ================ Required imports & libraries ================
 
+# Torch
 from torch.utils.data import Subset, Dataset, DataLoader
 import torch
 
+# Basic libraries
 import pandas as pd
 import numpy as np
 import argparse
 import sys
 import os
 
+# Functions from other .py files
 from models import SimpleEffnet
-
 from datasets import Custom_Dataset, read_data, get_augmentations
 from utils import metrics, predict
+
+# ================ Prediction Script ================
 
 # Test Configuration
 def parse_args():
@@ -38,7 +42,10 @@ def main():
     
     # ================ Dataset selection ================
     
+    # Read df and meta in case we use it
     df, metadata_features, n_metadata_features = read_data(dataset=args.dataset, data_dir=args.data_dir, image_size=args.image_size, use_metadata=True if args.use_metadata == 'yes' else False)
+    
+    # Copy of original targets of the dataset
     targets = df['target']
 
     print(f'Testing images: {len(df)}')
@@ -56,18 +63,23 @@ def main():
     
     # ================ Load Model ================
 
-    model = SimpleEffnet(n_metadata_features=n_metadata_features)
+    # Load model from the path established in the config
+    model = SimpleEffnet(arch=args.arch, n_metadata_features=n_metadata_features)
     model.load_state_dict(torch.load(args.model_path))
     model.to(device)
 
+    # Predict
     predictions = predict(model, test_loader, device)
     
+    # Extract model name in order to save ROC curve, PR curve and confusion matrix info in order to plot them in a jupyter notebook
     model_path = args.model_path
     model_name = os.path.basename(model_path).replace('.pth', '')
     saving_path_plots = f'predict_{model_name}_on_{args.dataset}'
 
+    # metrics
     auc, f1, fpr, tpr, sensibility, precision, recall, balanced_accuracy_score = metrics(targets=targets, predictions=predictions, path=os.path.join(args.misc_path, saving_path_plots)).values()
 
+    # Print results
     print(f'‣ AUC: {auc}')
     print(f'‣ Weighted F1 Score: {f1}')
     print(f'‣ Sensibility: {sensibility}')
