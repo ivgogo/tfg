@@ -36,7 +36,7 @@ You can install all necessary Python packages requeriments and dependencies by u
 ```
 pip install -r requreriments.txt
 ```
-After having installed the dependencies, download the train and test datasets and place them in the data folder along with their corresponding `.csv` metadata files. iToBoS data is not yet public, although it will be publicly released in the future. Experiments can be ran with ISIC challenge datasets. The ISIC challenge datasets can be easily accessed through [Kaggle](https://www.kaggle.com/) or the [ISIC archive](https://challenge.isic-archive.com/data/).
+After having installed the dependencies, download the train and test datasets and place them in the data folder along with their corresponding `.csv` metadata files. iToBoS data is not yet public, although it will be publicly released in the future. Experiments can be ran with ISIC challenge datasets. The ISIC challenge datasets can be easily accessed through [Kaggle](https://www.kaggle.com/) or the [ISIC archive](https://challenge.isic-archive.com/data/). **If you want to use all the augmentations** you will need as well the dataset of hairs. To use it, you must download it and replace the `path` in the `CustomHairAugmentation` initialization in the function `get_augmentations()` from `datasets.py`. The small dataset of hairs can be found [here](https://www.kaggle.com/datasets/nroman/melanoma-hairs).
 
 ## Usage
 In this section you can find the training commands to run the script. However the use of `nohup` and `.ssh` files is recommended. Training time for the models ranges from multiple hours to tens of hours, depending on the GPU you use.
